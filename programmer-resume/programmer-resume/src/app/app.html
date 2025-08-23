@@ -1,0 +1,21 @@
+<div class="p-grid" *ngIf="resumeData$ | async as resume">
+  <div class="p-col-12">
+    <app-header [name]="resume.name" [title]="resume.title" [avatar]="resume.avatar" [linkedin]="resume.linkedin" [github]="resume.github"></app-header>
+  </div>
+  <div class="p-col-12">
+    <app-summary [summary]="resume.summary"></app-summary>
+  </div>
+  <div class="p-col-12">
+    <app-experience [experience]="resume.experience"></app-experience>
+  </div>
+  <div class="p-col-12">
+    <app-education [education]="resume.education"></app-education>
+  </div>
+  <div class="p-col-12">
+    <app-skills [skills]="resume.skills"></app-skills>
+  </div>
+  <div class="p-col-12">
+    <app-projects [projects]="resume.projects"></app-projects>
+  </div>
+</div>
+<router-outlet></router-outlet>

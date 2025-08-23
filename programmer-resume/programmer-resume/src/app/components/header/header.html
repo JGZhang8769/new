@@ -1,0 +1,19 @@
+<p-card>
+    <div class="p-grid p-align-center">
+        <div class="p-col-12 p-md-2 text-center">
+            <p-avatar [image]="avatar" size="xlarge" shape="circle"></p-avatar>
+        </div>
+        <div class="p-col-12 p-md-8">
+            <div class="p-card-title">{{name}}</div>
+            <div class="p-card-subtitle">{{title}}</div>
+        </div>
+        <div class="p-col-12 p-md-2 text-center">
+            <a [href]="'https://' + linkedin" target="_blank" class="p-button-text">
+                <i class="pi pi-linkedin" style="font-size: 2rem"></i>
+            </a>
+            <a [href]="'https://' + github" target="_blank" class="p-button-text">
+                <i class="pi pi-github" style="font-size: 2rem"></i>
+            </a>
+        </div>
+    </div>
+</p-card>
