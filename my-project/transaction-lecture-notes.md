@@ -1,131 +1,138 @@
-# Spring Boot 交易 (Transaction) 機制講解
+# Spring Boot 交易 (Transaction) 機制深度講解
 
 大家好！今天我們將深入探討 Spring Boot 中一個非常核心且重要的功能——**交易管理 (Transaction Management)**。
 
 ## 什麼是交易 (Transaction)？
 
-在資料庫操作中，一個「交易」是指一組必須**全部成功**或**全部失敗**的操作單元。這組操作要麼全部被提交 (Commit) 到資料庫，要麼在出現問題時全部被復原 (Rollback) 到操作前的狀態。
+在資料庫操作中，一個「交易」是指一組必須**全部成功**或**全部失敗**的操作單元。它具有四個基本特性，通常被稱為 **ACID**：
 
-這確保了資料的**一致性 (Consistency)** 和**完整性 (Integrity)**。交易具有四個基本特性，通常被稱為 **ACID**：
-
--   **原子性 (Atomicity)**：一個交易是不可分割的最小工作單元，要麼全部執行，要麼全部不執行。
+-   **原子性 (Atomicity)**：一個交易是不可分割的最小工作單元。
 -   **一致性 (Consistency)**：交易必須使資料庫從一個一致的狀態轉變到另一個一致的狀態。
 -   **隔離性 (Isolation)**：一個交易的執行不能被其他交易干擾。
 -   **持久性 (Durability)**：一個交易一旦被提交，它對資料庫中資料的改變就是永久性的。
 
-## Spring 的宣告式交易管理
+## Spring 的宣告式交易管理: `@Transactional`
 
-在 Spring 中，我們不需要手動編寫 `try-catch-finally` 區塊來提交或回滾交易。Spring 提供了強大的**宣告式交易管理**，我們只需要一個簡單的註解 `@Transactional` 就可以搞定！
-
-`@Transactional` 註解可以被應用在類別或方法上。當它被應用在類別上時，該類別中所有的 `public` 方法都將擁有預設的交易設定。當它被應用在方法上時，它會覆蓋類別級別的設定。
+Spring 提供了強大的**宣告式交易管理**，我們只需要一個簡單的註解 `@Transactional` 就可以搞定！
 
 ---
 
-## 範例：產品服務的交易
-
-讓我們透過一個 `ProductService` 的例子來看看 `@Transactional` 如何運作。
+## 基礎範例：成功與回滾
 
 ### 1. 成功的交易
-
-這個方法用來儲存兩個產品。整個方法被 `@Transactional` 包裹，代表這兩個儲存操作在同一個交易中。
-
-```java
-// 檔案路徑: src/main/java/com/example/springbuilderexample/transaction/ProductService.java
-
-@Service
-public class ProductService {
-
-    @Autowired
-    private ProductRepository productRepository;
-
-    @Transactional
-    public void createProductsSuccessfully() {
-        productRepository.save(new Product("Book"));
-        productRepository.save(new Product("Pen"));
-    }
-    // ...
-}
-```
-
-**如何驗證？**
-1.  啟動應用程式。
-2.  發送一個 `POST` 請求到 `/products/success`。
-3.  再發送一個 `GET` 請求到 `/products`。
-4.  你會看到資料庫中有 "Book" 和 "Pen" 兩筆資料，證明交易成功提交。
-
-### 2. 失敗並回滾的交易
-
-這個方法模擬了一個在交易過程中發生錯誤的場景。它先儲存了一個產品 "Laptop"，然後手動拋出一個 `RuntimeException`。
+`createProductsSuccessfully()` 方法被 `@Transactional` 包裹，兩個 `save` 操作在同一個交易中，會一起成功。
 
 ```java
 // 檔案路徑: src/main/java/com/example/springbuilderexample/transaction/ProductService.java
-
-@Service
-public class ProductService {
-
-    // ...
-
-    @Transactional
-    public void createProductsWithRollback() {
-        productRepository.save(new Product("Laptop"));
-        if (true) {
-            throw new RuntimeException("Simulating an error during transaction!");
-        }
-        productRepository.save(new Product("Mouse")); // 這行程式碼永遠不會被執行
-    }
-    // ...
+@Transactional
+public void createProductsSuccessfully() {
+    productRepository.save(new Product("Book"));
+    productRepository.save(new Product("Pen"));
 }
 ```
+-   **測試**: `POST /products/success`，然後 `GET /products` 會看到兩筆新資料。
 
-**關鍵點：**
--   Spring 的交易管理**預設只會對 `RuntimeException` 和 `Error` 進行回滾**。對於受檢例外 (Checked Exception)，它預設是不會回滾的。
--   因為我們拋出了 `RuntimeException`，Spring 會捕捉到它並觸發交易回滾。
+### 2. 因執行期例外而回滾的交易
+`createProductsWithRollback()` 方法在儲存 "Laptop" 後拋出 `RuntimeException`。
 
-**如何驗證？**
-1.  啟動應用程式。
-2.  （可選）先發送 `GET` 到 `/products` 確認資料庫是空的。
-3.  發送一個 `POST` 請求到 `/products/rollback`。你會收到一個錯誤回應。
-4.  再次發送 `GET` 請求到 `/products`。
-5.  你會發現資料庫**仍然是空的**！即使 `save(new Product("Laptop"))` 已經被執行，但因為整個交易被回滾了，所以 "Laptop" 並沒有被真正存入資料庫。這就是交易的原子性！
+```java
+@Transactional
+public void createProductsWithRollback() {
+    productRepository.save(new Product("Laptop"));
+    throw new RuntimeException("Simulating an error during transaction!");
+    // productRepository.save(new Product("Mouse")); // 不會執行
+}
+```
+-   **測試**: `POST /products/rollback`，然後 `GET /products` 會發現資料庫是空的，"Laptop" 被成功回滾。
 
 ---
 
-## 如何觸發範例？
+## `@Transactional` 的進階設定
 
-為了方便展示，我們建立了一個 `ProductController` 來提供 API 端點。
+`@Transactional` 註解有很多可以設定的屬性，讓我們來看看幾個最重要的。
+
+### 1. `propagation` (交易傳播行為)
+
+這個屬性定義了當一個交易方法被另一個交易方法呼叫時，交易應該如何傳播。最常見的兩個是：
+
+-   `REQUIRED` (預設值): 如果當前已經存在一個交易，那麼就加入該交易，否則就自己建立一個新的交易。
+-   `REQUIRES_NEW`: 不論當前是否存在交易，都會為自己建立一個**全新的、獨立的**交易。如果外部存在交易，外部交易會被暫停，直到這個新交易完成。
+
+**範例**: `outerRequiresNew()` 呼叫 `innerRequiresNew()`。
+-   `outerRequiresNew`：使用預設的 `REQUIRED`。
+-   `innerRequiresNew`：使用 `REQUIRES_NEW`。
 
 ```java
-// 檔案路徑: src/main/java/com/example/springbuilderexample/transaction/ProductController.java
-@RestController
-@RequestMapping("/products")
-public class ProductController {
-    // ...
-    @PostMapping("/success")
-    public ResponseEntity<String> createProductsSuccessfully() { ... }
+@Transactional
+public void outerRequiresNew() {
+    productRepository.save(new Product("Outer Product")); // 會被回滾
 
-    @PostMapping("/rollback")
-    public ResponseEntity<String> createProductsWithRollback() { ... }
+    try {
+        self.innerRequiresNew(); // 呼叫自己類別的方法需要透過代理
+    } catch (Exception e) {
+        // 內部交易的例外不會影響外部
+    }
 
-    @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() { ... }
+    throw new RuntimeException("Rollback outer transaction");
+}
+
+@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void innerRequiresNew() {
+    productRepository.save(new Product("Inner Product")); // 會成功提交
+}
+```
+**關鍵點**: 為了讓 `propagation` 生效，`innerRequiresNew()` 必須透過 Spring 的代理物件來呼叫。這就是為什麼我們需要注入 `ProductService self`。
+
+**如何驗證？**
+1.  `DELETE /products` 清空資料庫。
+2.  `POST /products/requires-new`。
+3.  `GET /products`。你會發現資料庫中**只有 "Inner Product"**！因為外部交易被回滾了，但內部交易 (`REQUIRES_NEW`) 已經獨立提交了。
+
+### 2. `rollbackFor` (指定回滾的例外)
+
+預設情況下，Spring 只會對 `RuntimeException` 和 `Error` 進行回滾。如果你希望在發生**受檢例外 (Checked Exception)** 時也回滾交易，就需要使用 `rollbackFor`。
+
+```java
+// 自訂一個受檢例外
+public class CustomCheckedException extends Exception { ... }
+
+// 在 Service 中使用 rollbackFor
+@Transactional(rollbackFor = CustomCheckedException.class)
+public void createProductWithCheckedException() throws CustomCheckedException {
+    productRepository.save(new Product("Checked Exception Product"));
+    throw new CustomCheckedException("This should cause a rollback.");
 }
 ```
 
-你可以使用 `curl` 或 Postman 等工具來測試：
+**如何驗證？**
+1.  `DELETE /products` 清空資料庫。
+2.  `POST /products/checked-exception`。
+3.  `GET /products`。你會發現資料庫是空的，證明即使是受檢例外，交易也成功回滾了。
 
--   **成功交易**: `curl -X POST http://localhost:8080/products/success`
--   **失敗交易**: `curl -X POST http://localhost:8080/products/rollback`
--   **查看結果**: `curl http://localhost:8080/products`
+### 3. `readOnly` (唯讀交易)
 
-同時，你也可以登入 H2 資料庫的主控台來直接查看資料。應用程式啟動後，在瀏覽器中開啟 `http://localhost:8080/h2-console`，並使用以下設定連接：
--   **JDBC URL**: `jdbc:h2:mem:testdb`
--   **User Name**: `sa`
--   **Password**: (留空)
+這是一個優化選項。當你將交易設定為 `readOnly = true`，你等於在告訴資料庫和 JPA Provider，這個交易中**不會有任何寫入操作**。
+
+```java
+@Transactional(readOnly = true)
+public List<Product> findAllProducts() {
+    return productRepository.findAll();
+}
+```
+這可以帶來一些效能上的好處，例如，資料庫可以不做一些鎖定，JPA Provider 也可以避免一些不必要的髒檢查 (dirty checking)。
+
+---
+
+## 如何觸發進階範例？
+
+-   **Propagation**: `POST /products/requires-new`
+-   **RollbackFor**: `POST /products/checked-exception`
+-   **清空資料庫**: `DELETE /products`
+-   **查看結果**: `GET /products`
+-   **H2 Console**: `http://localhost:8080/h2-console`
 
 ## 總結
 
-Spring 的 `@Transactional` 註解為我們提供了一個非常強大且易於使用的宣告式交易管理機制。它大大簡化了我們的程式碼，讓我們可以專注於業務邏輯，而不必處理繁瑣的交易控制程式碼。
-
-透過今天的範例，我們看到了它如何確保操作的原子性，在成功時提交，在失敗時回滾，從而保護我們資料的完整與一致。
+透過靈活運用 `@Transactional` 的各項屬性，我們可以非常精準地控制應用程式的交易行為，從而建構出更加穩健、高效的系統。
 
 謝謝大家。

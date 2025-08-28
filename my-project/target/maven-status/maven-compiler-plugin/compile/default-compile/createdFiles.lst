@@ -12,6 +12,7 @@ com/example/springbuilderexample/builder/sql/SQL$SQLBuilder.class
 com/example/springbuilderexample/builder/simple/User$UserBuilder.class
 com/example/springbuilderexample/transaction/ProductRepository.class
 com/example/springbuilderexample/builder/sql/SQL$FromStep.class
+com/example/springbuilderexample/transaction/CustomCheckedException.class
 com/example/springbuilderexample/builder/sql/SQL$SQLBuilder$StatementType.class
 com/example/springbuilderexample/SpringBuilderExampleApplication.class
 com/example/springbuilderexample/builder/sql/SQL$UpdateStep.class
